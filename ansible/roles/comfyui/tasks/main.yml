@@ -1,0 +1,93 @@
+---
+# comfyui — clone ComfyUI, install deps (CUDA torch), pull custom nodes,
+# register systemd service. Idempotent across re-runs.
+
+- name: Ensure ComfyUI dir
+  ansible.builtin.file:
+    path: "{{ comfyui_dir }}"
+    state: directory
+    owner: "{{ comfy_user }}"
+    group: "{{ comfy_group }}"
+    mode: "0755"
+
+- name: Clone ComfyUI
+  ansible.builtin.git:
+    repo: https://github.com/comfyanonymous/ComfyUI.git
+    dest: "{{ comfyui_dir }}"
+    depth: 1
+    version: master
+  become_user: "{{ comfy_user }}"
+  register: comfyui_clone
+
+- name: Create ComfyUI venv (uv, Python {{ python_version }})
+  ansible.builtin.command: >
+    uv venv --python {{ python_version }} {{ comfyui_dir }}/.venv
+  args:
+    creates: "{{ comfyui_dir }}/.venv/bin/python"
+  become_user: "{{ comfy_user }}"
+
+- name: Install ComfyUI requirements (CUDA torch)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    cd {{ comfyui_dir }}
+    uv pip install --python .venv/bin/python \
+      --index-url https://download.pytorch.org/whl/cu124 \
+      torch torchvision torchaudio
+    uv pip install --python .venv/bin/python -r requirements.txt
+  args:
+    executable: /bin/bash
+  become_user: "{{ comfy_user }}"
+  changed_when: comfyui_clone.changed
+
+- name: Install ComfyUI custom nodes
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "{{ comfyui_dir }}/custom_nodes/{{ item.name }}"
+    version: "{{ item.version | default('main') }}"
+    depth: 1
+  become_user: "{{ comfy_user }}"
+  loop:
+    - name: ComfyUI-AnimateDiff-Evolved
+      repo: https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
+    - name: ComfyUI-VideoHelperSuite
+      repo: https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+    - name: ComfyUI-WanVideoWrapper
+      repo: https://github.com/kijai/ComfyUI-WanVideoWrapper.git
+    - name: ComfyUI-Style-Bert-VITS2
+      repo: https://github.com/AIFSH/ComfyUI-Style-Bert-VITS2.git
+    - name: ComfyUI_XTTS
+      repo: https://github.com/AIFSH/ComfyUI_XTTS.git
+    - name: ComfyUI-Musicgen
+      repo: https://github.com/AIFSH/ComfyUI-Musicgen.git
+    - name: ComfyUI-Stable-Audio-Open-Sampler
+      repo: https://github.com/lks-ai/ComfyUI-Stable-Audio-Open-Sampler.git
+    - name: ComfyUI-Manager
+      repo: https://github.com/ltdrdata/ComfyUI-Manager.git
+  register: custom_nodes
+
+- name: Install custom node Python requirements (best-effort)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    for d in {{ comfyui_dir }}/custom_nodes/*/; do
+      if [ -f "$d/requirements.txt" ]; then
+        uv pip install --python {{ comfyui_dir }}/.venv/bin/python -r "$d/requirements.txt" || true
+      fi
+    done
+  args:
+    executable: /bin/bash
+  become_user: "{{ comfy_user }}"
+  changed_when: custom_nodes.changed
+
+- name: Systemd unit for ComfyUI
+  ansible.builtin.template:
+    src: comfyui.service.j2
+    dest: /etc/systemd/system/comfyui.service
+    mode: "0644"
+  notify: restart comfyui
+
+- name: Enable + start ComfyUI
+  ansible.builtin.systemd:
+    name: comfyui
+    enabled: true
+    state: started
+    daemon_reload: true

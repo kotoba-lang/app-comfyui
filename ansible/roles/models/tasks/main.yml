@@ -1,0 +1,73 @@
+---
+# models — HuggingFace model downloads into {{ models_dir }} subdirs.
+# Idempotent: skips files that already exist.
+# Gated artifacts (FLUX.1-dev, SVD, Stable Audio Open) require hf_token.
+
+- name: Ensure huggingface_hub installed on target
+  ansible.builtin.pip:
+    name: huggingface_hub[cli]
+    executable: pip3
+    extra_args: --break-system-packages
+
+- name: Ensure model subdirectories
+  ansible.builtin.file:
+    path: "{{ models_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ comfy_user }}"
+    group: "{{ comfy_group }}"
+    mode: "0755"
+  loop:
+    - checkpoints
+    - controlnet
+    - ipadapter
+    - animatediff_models
+    - diffusion_models
+    - SBV2
+    - xtts
+    - musicgen
+    - audio_checkpoints
+    - upscale_models
+    - clip_vision
+    - vae
+
+- name: Fail early when gated model requested without hf_token
+  ansible.builtin.fail:
+    msg: "hf_token is empty but gated models were requested. Set via --extra-vars hf_token=hf_xxx."
+  when: (model_downloads | selectattr('gated', 'equalto', true) | list | length > 0) and (hf_token | length == 0)
+
+- name: Download models (hf hub)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    dest="{{ models_dir }}/{{ item.dest_subdir }}"
+    target="{{ (item.rename | default(item.file | basename)) }}"
+    if [ -s "$dest/$target" ]; then
+      echo "SKIP: $target already present"
+      exit 0
+    fi
+    export HF_TOKEN="{{ hf_token }}"
+    huggingface-cli download \
+      "{{ item.repo }}" "{{ item.file }}" \
+      --local-dir "$dest" \
+      --local-dir-use-symlinks False \
+      {% if item.gated %}--token "$HF_TOKEN"{% endif %}
+    # rename if needed
+    downloaded=$(basename "{{ item.file }}")
+    if [ "$downloaded" != "$target" ] && [ -f "$dest/$downloaded" ]; then
+      mv "$dest/$downloaded" "$dest/$target"
+    fi
+  args:
+    executable: /bin/bash
+  become_user: "{{ comfy_user }}"
+  loop: "{{ model_downloads }}"
+  loop_control:
+    label: "{{ item.repo }}/{{ item.file }}"
+  register: dl_result
+  changed_when: "'SKIP' not in dl_result.stdout"
+  failed_when: >-
+    dl_result.rc != 0
+    and not (item.allow_fallback | default(false))
+  # allow_fallback=true lets a download soft-fail (warn, continue) so that
+  # e.g. Seedance 2 FP8 checkpoint URL drift doesn't brick the whole playbook.
+  # Consumers of such models must handle runtime "model missing" gracefully
+  # (BPMN `generic.comfyui.call` returns {status, error} — BPMN gateway
+  # can branch to a fallback backend).

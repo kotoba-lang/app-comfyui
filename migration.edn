@@ -1,0 +1,1 @@
+{:schema "etzhayyim.migration/v1" :source {:repository "etzhayyim/root" :revision "cc681c5a5be287a59f7a330e44f5675ecb530490" :path "60-apps/etzhayyim-project-comfyui" :tree "b9979bbc93f7845e3db3afcffe2ef3e032da6331" :tracked-files 34 :bytes 103550} :destination {:repository "etzhayyim/com-etzhayyim-app-comfyui"} :identity {:allowed-additions ["README.edn" "migration.edn"]}}

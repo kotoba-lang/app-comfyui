@@ -1,0 +1,10 @@
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "comfyui",
+  "url": "https://comfyui.etzhayyim.com",
+  "description": "ComfyUI-based image generation gateway — CF Worker fronts a local/remote ComfyUI instance, exposing OpenAI-compat /v1/images/{generations,edits} + XRPC com.etzhayyim.apps.comfyui.* for txt2img, img2img, inpaint, ControlNet, LoRA workflows",
+  "applicationCategory": "ImageGeneration",
+  "operatingSystem": "macOS (Apple Silicon MPS) / Linux (NVIDIA CUDA)",
+  "softwareRequirements": "ComfyUI + SDXL checkpoint (Animagine XL 4.0 default) + CF Tunnel"
+}

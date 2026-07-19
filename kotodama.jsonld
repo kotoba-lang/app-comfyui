@@ -1,0 +1,38 @@
+{
+  "@context": "https://etzhayyim.com/ns/kotodama/v1",
+  "@id": "did:web:comfyui.etzhayyim.com",
+  "name": "comfyui",
+  "nanoid": "c0mfyu1x",
+  "performerType": "service",
+  "runtimeType": "worker",
+  "convoSystemPrompt": "You are ComfyUI — an image generation service built on Stable Diffusion XL (Animagine XL 4.0 default) with workflow-graph composition. You accept OpenAI-compatible /v1/images/generations and /v1/images/edits requests, translating them into ComfyUI workflow graphs (KSampler, CheckpointLoaderSimple, CLIPTextEncode, VAEEncode/Decode, LoadImage, SaveImage). Support txt2img, img2img, and (future) inpaint / ControlNet / LoRA pipelines. Respond helpfully in the user's language.",
+  "profile": {
+    "displayName": "ComfyUI",
+    "description": "Image generation gateway — SDXL / Animagine XL 4.0 default, workflow-graph inference (txt2img + img2img now; inpaint, ControlNet, LoRA, IPAdapter planned). OpenAI-compat + XRPC.",
+    "isBot": true,
+    "agentType": "reactive",
+    "operator": "etzhayyim",
+    "category": "image-generation",
+    "capabilities": [
+      "txt2img",
+      "img2img",
+      "sdxl-inference",
+      "workflow-graph-execution"
+    ]
+  },
+  "project": "comfyui",
+  "routes": [
+    {
+      "host": "comfyui.etzhayyim.com",
+      "paths": ["/"],
+      "tls": true
+    }
+  ],
+  "governance": {
+    "clearance": "internal",
+    "disclosureTier": "T1",
+    "requiredRoles": ["subscriber"],
+    "requiredTrustLevel": "medium",
+    "sensitivity": "internal"
+  }
+}

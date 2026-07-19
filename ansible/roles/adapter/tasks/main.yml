@@ -1,0 +1,58 @@
+---
+# adapter — deploy OpenAI → ComfyUI adapter from repo (sparse checkout).
+
+- name: Ensure adapter dir
+  ansible.builtin.file:
+    path: "{{ adapter_dir }}"
+    state: directory
+    owner: "{{ comfy_user }}"
+    group: "{{ comfy_group }}"
+    mode: "0755"
+
+- name: Clone (sparse) root — adapter path only
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if [ ! -d {{ adapter_dir }}/.git ]; then
+      git clone --depth 1 --filter=blob:none --sparse \
+        --branch {{ repo_ref }} {{ repo_url }} {{ adapter_dir }}
+      cd {{ adapter_dir }}
+      git sparse-checkout set 60-apps/etzhayyim-project-comfyui/adapter
+    else
+      cd {{ adapter_dir }}
+      git fetch origin {{ repo_ref }}
+      git reset --hard origin/{{ repo_ref }}
+    fi
+  args:
+    executable: /bin/bash
+  become_user: "{{ comfy_user }}"
+  register: repo_sync
+  changed_when: "'Already up to date' not in repo_sync.stdout"
+
+- name: Create adapter venv (uv)
+  ansible.builtin.command: >
+    uv venv --python {{ python_version }}
+    {{ adapter_dir }}/60-apps/etzhayyim-project-comfyui/adapter/.venv
+  args:
+    creates: "{{ adapter_dir }}/60-apps/etzhayyim-project-comfyui/adapter/.venv/bin/python"
+  become_user: "{{ comfy_user }}"
+
+- name: Sync adapter dependencies
+  ansible.builtin.command: uv sync --python .venv/bin/python
+  args:
+    chdir: "{{ adapter_dir }}/60-apps/etzhayyim-project-comfyui/adapter"
+  become_user: "{{ comfy_user }}"
+  changed_when: repo_sync.changed
+
+- name: Systemd unit for adapter
+  ansible.builtin.template:
+    src: adapter.service.j2
+    dest: /etc/systemd/system/adapter.service
+    mode: "0644"
+  notify: restart adapter
+
+- name: Enable + start adapter
+  ansible.builtin.systemd:
+    name: adapter
+    enabled: true
+    state: started
+    daemon_reload: true

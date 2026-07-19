@@ -1,0 +1,22 @@
+[Unit]
+Description=ComfyUI (Pattern 1 per ADR-0050)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ comfy_user }}
+Group={{ comfy_group }}
+WorkingDirectory={{ comfyui_dir }}
+Environment=PYTHONUNBUFFERED=1
+Environment=HF_HOME={{ data_mount }}/.hf-cache
+ExecStart={{ comfyui_dir }}/.venv/bin/python main.py \
+    --port {{ comfyui_port }} \
+    --listen 127.0.0.1 \
+    --disable-auto-launch
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

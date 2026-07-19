@@ -1,0 +1,88 @@
+---
+# common — base OS (Ubuntu 22.04 LTS), user, ufw, uv, ffmpeg, build tools.
+
+- name: Apt update & upgrade
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: safe
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - build-essential
+      - ca-certificates
+      - curl
+      - git
+      - jq
+      - ffmpeg
+      - libsndfile1
+      - pkg-config
+      - python3
+      - python3-pip
+      - python3-venv
+      - sudo
+      - tmux
+      - ufw
+      - unzip
+      - wget
+    state: present
+
+- name: Create comfy group
+  ansible.builtin.group:
+    name: "{{ comfy_group }}"
+    state: present
+
+- name: Create comfy user
+  ansible.builtin.user:
+    name: "{{ comfy_user }}"
+    group: "{{ comfy_group }}"
+    home: "{{ comfy_home }}"
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Sudoers drop-in (passwordless systemctl for service reloads)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/comfy-systemctl
+    mode: "0440"
+    content: |
+      {{ comfy_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart comfyui, /usr/bin/systemctl restart adapter, /usr/bin/systemctl restart llm-backend, /usr/bin/systemctl restart cloudflared
+
+- name: Ensure data mount dir exists
+  ansible.builtin.file:
+    path: "{{ data_mount }}"
+    state: directory
+    owner: "{{ comfy_user }}"
+    group: "{{ comfy_group }}"
+    mode: "0755"
+
+- name: UFW — allow SSH only (external ports reached via cloudflared tunnel)
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: UFW — enable deny-by-default
+  community.general.ufw:
+    state: enabled
+    default: deny
+    direction: incoming
+
+- name: Install uv (Python package / project manager)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if ! command -v uv >/dev/null 2>&1; then
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      install -m 0755 /root/.cargo/bin/uv /usr/local/bin/uv
+    fi
+    uv --version
+  args:
+    creates: /usr/local/bin/uv
+  register: uv_install
+  changed_when: "'was installed' in uv_install.stdout or 'installed' in uv_install.stdout"
+
+- name: uv — ensure Python {{ python_version }} is available
+  ansible.builtin.command: uv python install {{ python_version }}
+  become_user: "{{ comfy_user }}"
+  changed_when: false

@@ -1,0 +1,64 @@
+---
+# nvidia — driver {{ nvidia_driver_branch }}+ + CUDA {{ cuda_version }}.
+# Skips when nvidia-smi already reports the target driver branch.
+
+- name: Check existing nvidia-smi
+  ansible.builtin.command: nvidia-smi --query-gpu=driver_version --format=csv,noheader,nounits
+  register: nvidia_smi
+  failed_when: false
+  changed_when: false
+
+- name: Skip driver install when branch matches
+  ansible.builtin.set_fact:
+    nvidia_driver_ok: "{{ (nvidia_smi.rc == 0) and (nvidia_smi.stdout.startswith(nvidia_driver_branch)) }}"
+
+- name: Install ubuntu-drivers-common
+  ansible.builtin.apt:
+    name: ubuntu-drivers-common
+    state: present
+  when: not nvidia_driver_ok
+
+- name: Install NVIDIA driver branch {{ nvidia_driver_branch }}
+  ansible.builtin.apt:
+    name: "nvidia-driver-{{ nvidia_driver_branch }}"
+    state: present
+  when: not nvidia_driver_ok
+  register: nvidia_driver_pkg
+
+- name: Add NVIDIA CUDA apt keyring
+  ansible.builtin.shell: |
+    set -euo pipefail
+    source /etc/os-release
+    distro="ubuntu$(echo ${VERSION_ID} | tr -d '.')"
+    arch=$(dpkg --print-architecture)
+    case "$arch" in amd64) cuda_arch=x86_64 ;; arm64) cuda_arch=sbsa ;; *) exit 1 ;; esac
+    keyring_url="https://developer.download.nvidia.com/compute/cuda/repos/${distro}/${cuda_arch}/cuda-keyring_1.1-1_all.deb"
+    curl -fsSL -o /tmp/cuda-keyring.deb "$keyring_url"
+    dpkg -i /tmp/cuda-keyring.deb
+  args:
+    creates: /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list
+  register: cuda_keyring
+
+- name: Apt update after CUDA keyring
+  ansible.builtin.apt:
+    update_cache: true
+  when: cuda_keyring.changed
+
+- name: Install CUDA toolkit {{ cuda_version }}
+  ansible.builtin.apt:
+    name: "cuda-toolkit-{{ cuda_version }}"
+    state: present
+
+- name: Reboot if driver changed
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+  when: nvidia_driver_pkg is defined and nvidia_driver_pkg.changed
+
+- name: Verify nvidia-smi (post-install)
+  ansible.builtin.command: nvidia-smi
+  changed_when: false
+  register: nvsmi_final
+
+- name: Show GPU
+  ansible.builtin.debug:
+    msg: "{{ nvsmi_final.stdout_lines[:8] }}"

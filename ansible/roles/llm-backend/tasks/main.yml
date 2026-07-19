@@ -1,0 +1,72 @@
+---
+# llm-backend — llama.cpp server + Qwen 2.5 7B Instruct Q4_K_M (GGUF).
+# Mid-tier LLM for agent loop (per ADR-0050 tiering).
+
+- name: Ensure llm-backend dir
+  ansible.builtin.file:
+    path: "{{ llm_backend_dir }}"
+    state: directory
+    owner: "{{ comfy_user }}"
+    group: "{{ comfy_group }}"
+    mode: "0755"
+
+- name: Ensure models subdir
+  ansible.builtin.file:
+    path: "{{ llm_backend_dir }}/models"
+    state: directory
+    owner: "{{ comfy_user }}"
+    group: "{{ comfy_group }}"
+    mode: "0755"
+
+- name: Clone llama.cpp
+  ansible.builtin.git:
+    repo: https://github.com/ggerganov/llama.cpp.git
+    dest: "{{ llm_backend_dir }}/llama.cpp"
+    depth: 1
+    version: master
+  become_user: "{{ comfy_user }}"
+  register: llama_clone
+
+- name: Install build tools (cmake + ccache)
+  ansible.builtin.apt:
+    name:
+      - cmake
+      - ccache
+      - libcurl4-openssl-dev
+    state: present
+
+- name: Build llama.cpp with CUDA
+  ansible.builtin.shell: |
+    set -euo pipefail
+    cd {{ llm_backend_dir }}/llama.cpp
+    if [ -x build/bin/llama-server ]; then
+      exit 0
+    fi
+    cmake -B build -DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --config Release -j $(nproc) --target llama-server
+  args:
+    executable: /bin/bash
+    creates: "{{ llm_backend_dir }}/llama.cpp/build/bin/llama-server"
+  become_user: "{{ comfy_user }}"
+
+- name: Download Qwen 2.5 7B Instruct Q4_K_M GGUF (~4.5 GiB)
+  ansible.builtin.get_url:
+    url: https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf
+    dest: "{{ llm_backend_dir }}/models/qwen2.5-7b-instruct-q4_k_m.gguf"
+    mode: "0644"
+    timeout: 1800
+  become_user: "{{ comfy_user }}"
+
+- name: Systemd unit for llm-backend
+  ansible.builtin.template:
+    src: llm-backend.service.j2
+    dest: /etc/systemd/system/llm-backend.service
+    mode: "0644"
+  notify: restart llm-backend
+
+- name: Enable + start llm-backend
+  ansible.builtin.systemd:
+    name: llm-backend
+    enabled: true
+    state: started
+    daemon_reload: true

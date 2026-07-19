@@ -1,0 +1,22 @@
+[Unit]
+Description=OpenAI→ComfyUI adapter (Pattern 1)
+After=network-online.target comfyui.service
+Wants=network-online.target
+Requires=comfyui.service
+
+[Service]
+Type=simple
+User={{ comfy_user }}
+Group={{ comfy_group }}
+WorkingDirectory={{ adapter_dir }}/60-apps/etzhayyim-project-comfyui/adapter
+Environment=PYTHONUNBUFFERED=1
+Environment=ANIMAGINE_PORT={{ adapter_port }}
+Environment=COMFY_URL=http://127.0.0.1:{{ comfyui_port }}
+Environment=LLM_BACKEND_URL=http://127.0.0.1:{{ llm_backend_port }}
+ExecStart={{ adapter_dir }}/60-apps/etzhayyim-project-comfyui/adapter/.venv/bin/python server.py
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target

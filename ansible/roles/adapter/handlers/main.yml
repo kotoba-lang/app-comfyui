@@ -1,0 +1,6 @@
+---
+- name: restart adapter
+  ansible.builtin.systemd:
+    name: adapter
+    state: restarted
+    daemon_reload: true

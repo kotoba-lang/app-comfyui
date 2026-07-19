@@ -1,0 +1,51 @@
+---
+# cloudflared — tunnel connector to Cloudflare (comfyui-etzhayyim).
+# Token is provided via --extra-vars cloudflared_tunnel_token=<value>.
+
+- name: Fail when cloudflared_tunnel_token missing
+  ansible.builtin.fail:
+    msg: "cloudflared_tunnel_token is empty. Pass --extra-vars cloudflared_tunnel_token=<value>."
+  when: cloudflared_tunnel_token | length == 0
+
+- name: Download cloudflared .deb (amd64)
+  ansible.builtin.get_url:
+    url: https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+    dest: /tmp/cloudflared.deb
+    mode: "0644"
+    timeout: 600
+
+- name: Install cloudflared
+  ansible.builtin.apt:
+    deb: /tmp/cloudflared.deb
+    state: present
+
+- name: Ensure cloudflared config dir
+  ansible.builtin.file:
+    path: "{{ cloudflared_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write tunnel token file
+  ansible.builtin.copy:
+    dest: "{{ cloudflared_dir }}/tunnel-token"
+    content: "{{ cloudflared_tunnel_token }}"
+    mode: "0600"
+    owner: root
+    group: root
+  no_log: true
+
+- name: Systemd unit for cloudflared (token mode)
+  ansible.builtin.template:
+    src: cloudflared.service.j2
+    dest: /etc/systemd/system/cloudflared.service
+    mode: "0644"
+  notify: restart cloudflared
+
+- name: Enable + start cloudflared
+  ansible.builtin.systemd:
+    name: cloudflared
+    enabled: true
+    state: started
+    daemon_reload: true

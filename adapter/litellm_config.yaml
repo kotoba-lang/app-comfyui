@@ -1,0 +1,18 @@
+# LiteLLM proxy config — optional OpenAI-compat front door for the adapter.
+# Not required; most clients should hit the adapter directly at :8001.
+# Retained for backwards-compat with existing Murakumo-style clients.
+
+model_list:
+  - model_name: animagine-xl
+    litellm_params:
+      model: openai/animagine-xl
+      api_base: http://127.0.0.1:8001/v1
+      api_key: sk-local
+      mode: image_generation
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+
+general_settings:
+  master_key: sk-local-master

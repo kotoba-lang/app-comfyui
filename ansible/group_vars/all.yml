@@ -1,0 +1,41 @@
+# ComfyUI Pattern 1 shared variables (ADR-0050).
+# Override per-host or via `--extra-vars`.
+
+comfy_user: comfy
+comfy_group: comfy
+comfy_home: /home/{{ comfy_user }}
+
+# Persistent block storage mount (100 GiB, destroy-safe).
+data_mount: /data
+comfyui_dir: "{{ data_mount }}/comfyui"
+models_dir: "{{ comfyui_dir }}/models"
+adapter_dir: "{{ data_mount }}/adapter"
+llm_backend_dir: "{{ data_mount }}/llm-backend"
+cloudflared_dir: /etc/cloudflared
+
+# Repository + revision for adapter source.
+repo_url: https://github.com/etzhayyim/root.git
+repo_ref: main
+repo_sparse_paths:
+  - 60-apps/etzhayyim-project-comfyui/adapter
+
+# Ports (all bound to 127.0.0.1 — external = via cloudflared tunnel only).
+comfyui_port: 8188
+adapter_port: 8001
+llm_backend_port: 8010
+
+# HuggingFace token for gated checkpoints (FLUX.1-dev, SVD, Stable Audio Open).
+# Set via `--extra-vars hf_token=hf_xxx` or Vultr secret env.
+hf_token: ""
+
+# cloudflared tunnel credentials — issued by `cloudflared tunnel create comfyui-etzhayyim`.
+# Pass as `--extra-vars cloudflared_tunnel_token=<token>` (sensitive).
+cloudflared_tunnel_token: ""
+cloudflared_tunnel_name: comfyui-etzhayyim
+
+# Python toolchain (via uv).
+python_version: "3.12"
+
+# NVIDIA driver + CUDA pins.
+nvidia_driver_branch: "545"
+cuda_version: "12-4"

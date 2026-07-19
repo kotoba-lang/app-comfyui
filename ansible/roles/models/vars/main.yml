@@ -1,0 +1,61 @@
+---
+# Model catalog — downloaded into {{ models_dir }} subfolders per
+# ComfyUI's convention. Sizes are approximate; actual DL on first run
+# ~100-150 GiB total. HF gated artifacts require `hf_token` to be set.
+
+model_downloads:
+  # ── Image: SDXL checkpoints ────────────────────────────────────────────
+  - { dest_subdir: checkpoints, repo: cagliostrolab/animagine-xl-4.0, file: animagine-xl-4.0.safetensors, gated: false }
+  - { dest_subdir: checkpoints, repo: black-forest-labs/FLUX.1-dev,    file: flux1-dev.safetensors,       gated: true  }
+
+  # ── Image: ControlNet SDXL (pose / canny / depth) ──────────────────────
+  - { dest_subdir: controlnet, repo: xinsir/controlnet-openpose-sdxl-1.0, file: diffusion_pytorch_model_promax.safetensors, rename: controlnet-openpose-sdxl.safetensors, gated: false }
+  - { dest_subdir: controlnet, repo: xinsir/controlnet-canny-sdxl-1.0,    file: diffusion_pytorch_model.safetensors,         rename: controlnet-canny-sdxl.safetensors,    gated: false }
+  - { dest_subdir: controlnet, repo: xinsir/controlnet-depth-sdxl-1.0,    file: diffusion_pytorch_model.safetensors,         rename: controlnet-depth-sdxl.safetensors,    gated: false }
+
+  # ── Image: IPAdapter SDXL ─────────────────────────────────────────────
+  - { dest_subdir: ipadapter, repo: h94/IP-Adapter, file: sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors, rename: ip-adapter-plus_sdxl_vit-h.safetensors, gated: false }
+  - { dest_subdir: ipadapter, repo: h94/IP-Adapter-FaceID, file: ip-adapter-faceid-plusv2_sdxl.bin,           rename: ip-adapter-faceid-plusv2_sdxl.bin,      gated: false }
+
+  # ── Video: AnimateDiff SDXL motion module ──────────────────────────────
+  - { dest_subdir: animatediff_models, repo: guoyww/animatediff, file: mm_sdxl_v10_beta.ckpt, rename: mm_sdxl_v10.ckpt, gated: false }
+
+  # ── Video: Stable Video Diffusion 1.1 XT ───────────────────────────────
+  - { dest_subdir: checkpoints, repo: stabilityai/stable-video-diffusion-img2vid-xt-1-1, file: svd_xt_1_1.safetensors, gated: true }
+
+  # ── Video: WAN 5B (image-to-video) ──────────────────────────────────────
+  # Target model per main commit e217cc72f06 (os project). Kijai's wrapper
+  # expects wan-5b.safetensors in models/diffusion_models/. Adjust when pinned.
+  - { dest_subdir: diffusion_models, repo: Kijai/WanVideo_comfy, file: Wan2_1-I2V-14B-480P_bf16.safetensors, rename: wan-5b.safetensors, gated: false }
+
+  # ── Video: Seedance 2 (ByteDance) — DEFAULT i2v backend per ADR-2604231328 ──
+  # Seedance 2 FP8 checkpoint gives best character-identity retention for
+  # long interpolations + faithful camera moves for the compositing step.
+  # Requires Ada Lovelace (L40S / RTX 4090 / 5090) or Blackwell for FP8 native.
+  # On Ampere (A40 / 3090) the worker falls back to BF16 (2x slower + 1.5x VRAM).
+  # NOTE (2026-04-23): the ByteDance open checkpoint URL has moved in past
+  # months. If the repo/file below 404s, update from ComfyUI community index
+  # (https://github.com/ByteDance-Seed/Seedance) and pin the new path here.
+  - { dest_subdir: diffusion_models, repo: ByteDance-Seed/Seedance-2-FP8, file: seedance-2-i2v-fp8.safetensors, rename: seedance-2-i2v-fp8.safetensors, gated: false, allow_fallback: true }
+  - { dest_subdir: diffusion_models, repo: ByteDance-Seed/Seedance-2-FP8, file: seedance-2-composite-fp8.safetensors, rename: seedance-2-composite-fp8.safetensors, gated: false, allow_fallback: true }
+
+  # ── Audio: Style-Bert-VITS2 JP default ─────────────────────────────────
+  - { dest_subdir: SBV2,  repo: litagin/sbv2_default, file: default_pytorch.safetensors, rename: sbv2_jp_default.safetensors, gated: false }
+
+  # ── Audio: XTTS v2 (whole repo cached under HF_HOME) ────────────────────
+  - { dest_subdir: xtts,  repo: coqui/XTTS-v2, file: model.pth, gated: false, skip_rename: true }
+
+  # ── Audio: MusicGen (cached via HF cache at runtime by MusicGen node) ──
+  # facebook/musicgen-medium is auto-downloaded on first use; we pre-warm.
+  - { dest_subdir: musicgen, repo: facebook/musicgen-medium, file: pytorch_model.bin, gated: false }
+
+  # ── Audio: Stable Audio Open ──────────────────────────────────────────
+  - { dest_subdir: audio_checkpoints, repo: stabilityai/stable-audio-open-1.0, file: model.safetensors, rename: stable-audio-open-1.0.safetensors, gated: true }
+
+  # ── Upscaler ────────────────────────────────────────────────────────────
+  - { dest_subdir: upscale_models, repo: philz1337x/upscaler, file: 4x-UltraSharp.pth, gated: false }
+
+  # ── LLM: Qwen 2.5 7B Instruct Q4_K_M (used by llm-backend role) ─────────
+  # Downloaded into {{ llm_backend_dir }}/models by the llm-backend role
+  # directly; we list it here for catalog parity only.
+  # (see roles/llm-backend/tasks/main.yml)

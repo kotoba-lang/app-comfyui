@@ -1,0 +1,15 @@
+[Unit]
+Description=cloudflared tunnel ({{ cloudflared_tunnel_name }})
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate run --token $(cat {{ cloudflared_dir }}/tunnel-token)
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target
