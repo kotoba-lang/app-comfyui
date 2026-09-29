@@ -8,7 +8,7 @@ Idempotent provision of a single Vultr L40S 48GB Ubuntu 22.04 instance into the
 - Ubuntu 22.04 LTS instance (Vultr L40S, 100 GiB block storage mounted at `/data`).
 - SSH access as `ubuntu` (or any sudo-capable user).
 - Ansible 2.15+ on the operator machine (`uv tool install ansible`).
-- Secrets in macOS Keychain (per root CLAUDE.md local-secret-storage rule):
+- Secrets in macOS Keychain (per root AGENTS.md local-secret-storage rule):
   - `etzhayyim.hf / HF_TOKEN` — gated checkpoint downloads
   - `etzhayyim.cf / COMFYUI_TUNNEL_TOKEN` — `cloudflared tunnel token comfyui-etzhayyim` output
 

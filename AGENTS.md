@@ -64,7 +64,7 @@ LiteLLM proxy does not forward `/v1/images/edits` (v1.52 pass-through gap). img2
 ## Phase roadmap
 
 ### Phase 1 — Scaffold ✅ (2026-04-22)
-- `60-apps/etzhayyim-project-comfyui/` dir with CLAUDE.md, PROJECT.jsonld, kotodama.jsonld, deps.toml
+- `60-apps/etzhayyim-project-comfyui/` dir with AGENTS.md, PROJECT.jsonld, kotodama.jsonld, deps.toml
 - Root `deps.toml` `[[projects]]` + `[[legacy_nanoids]]` entries
 - No Worker, no DNS, no tunnel. Identity fixed: `did:web:comfyui.etzhayyim.com` / `c0mfyu1x`.
 
