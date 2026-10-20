@@ -1,0 +1,61 @@
+(ns comfyui.auth
+  "comfyui 認可判定コア — itonami dapp bundle（pure, :effects #{}）。
+
+  画像生成ゲートウェイの認可層とワークフローの判定（正本: AGENTS.md の
+  Auth layers（target, Murakumo pattern）+ adapter/workflows.py）:
+
+  - **認可層は 4 つ**:
+    0 sk_live_*（API 消費者。**scope=comfyui:generate 必須**）
+    1 COMFYUI_API_KEY（break-glass、ADR-0023。**緊急時のみ**）
+    2 mkc_* HMAC ephemeral（ブラウザプレビュー UI、匿名、**1h TTL**）
+    3 x-kotodama-verified（dispatcher 内部信頼）
+  - **ワークフローの閉じた集合（9）**: txt2img / img2img / animatediff / svd /
+    wan5b_i2v / sbv2 / xtts / musicgen / stable_audio。
+
+  auth-admission の戻り: 0 = 通す / 1 = invalidLayer / 2 = missingScope
+    / 3 = ttlExpired（mkc の 1h 超過）
+  workflow-mode-ok: 1 = 0..8 の内
+
+  実行 host はスカラーのみ = KIR v3 / i64/direct ABI（kernel/selfhost 両対応）。
+
+  テストはゼロ引数 test-*、戻り 1/0:
+  <amu> test aiueos/comfyui_auth.cljk"
+  (:export [main auth-admission workflow-mode-ok
+            test-layers test-scope test-ttl test-workflow test-fail-closed]))
+
+(defn main [] :i64
+  0)
+
+(defn auth-admission [layer-code :i64 scope-ok :i64 ttl-ok :i64] :i64
+  (if (or (< layer-code 0) (> layer-code 3))
+    1
+    (if (= layer-code 0)
+      (if (= scope-ok 1) 0 2)
+      (if (= layer-code 2)
+        (if (= ttl-ok 1) 0 3)
+        0))))
+
+(defn workflow-mode-ok [code :i64] :i64
+  (if (and (>= code 0) (<= code 8)) 1 0))
+
+;; --- tests（戻り 1 = pass） ------------------------------------------------
+
+(defn test-layers [] :i64
+  ;; 4 つの層: sk_live / break-glass / mkc / internal
+  (if (= (+ (auth-admission 1 0 0) (auth-admission 3 0 0) (auth-admission 4 1 1)) 1) 1 0))
+
+(defn test-scope [] :i64
+  ;; sk_live は scope=comfyui:generate 必須
+  (if (= (+ (auth-admission 0 1 0) (auth-admission 0 0 0)) 2) 1 0))
+
+(defn test-ttl [] :i64
+  ;; mkc は 1h TTL（超過は 3）
+  (if (= (+ (auth-admission 2 0 1) (auth-admission 2 0 0)) 3) 1 0))
+
+(defn test-workflow [] :i64
+  ;; 9 つの閉じた集合
+  (if (= (+ (workflow-mode-ok 0) (workflow-mode-ok 8) (workflow-mode-ok 9)) 2) 1 0))
+
+(defn test-fail-closed [] :i64
+  ;; 集合外の層は拒否
+  (if (= (+ (auth-admission -1 1 1) (workflow-mode-ok 12)) 1) 1 0))

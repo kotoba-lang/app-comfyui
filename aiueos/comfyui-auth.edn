@@ -1,0 +1,16 @@
+;; app-comfyui — itonami（dapp）の aiueos アプリ記述子（notes.edn 形）。
+;; 判定コアは aiueos/comfyui_auth.cljk（認可層・workflow 集合判定）。
+;; 正本は AGENTS.md の Auth layers + adapter/workflows.py。pure（:effects #{}）。
+{:aiueos/component :app/comfyui-auth
+ :aiueos/kind :app
+ :aiueos/trust :untrusted
+ :aiueos/source "comfyui_auth.cljk"
+ :aiueos/wasm "comfyui_auth.wasm"
+ :aiueos/entry "main"
+ :aiueos/args []
+ :aiueos/imports #{}
+ :aiueos/exports #{:app/main
+                   :app/auth-admission
+                   :app/workflow-mode-ok}
+ :aiueos/effects #{}
+ :aiueos/limits {:memory-pages 16 :fuel 5000000}}
