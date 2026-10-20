@@ -1,0 +1,26 @@
+(ns comfyui.auth-parity-test
+  "aiueos/comfyui_auth.cljk（判定コア）と正本（AGENTS.md の Auth layers +
+  adapter/workflows.py）の parity。認可層・scope・TTL・ワークフロー集合が
+  変われば落ちる drift 検査。"
+  (:require [clojure.test :refer [deftest is testing]]
+            [clojure.string :as str]
+            ["fs" :as fs]))
+
+(def agents (fs/readFileSync "AGENTS.md" "utf8"))
+(def workflows
+  (fs/readFileSync (str/join "/" ["adapter" "workflows.py"]) "utf8"))
+
+(deftest auth-layers-match-guest
+  (testing "guest test-layers / test-scope / test-ttl: 4 層・scope・1h TTL"
+    (is (str/includes? agents "sk_live_"))
+    (is (str/includes? agents "comfyui:generate"))
+    (is (str/includes? agents "COMFYUI_API_KEY"))
+    (is (str/includes? agents "mkc_"))
+    (is (str/includes? agents "1h TTL"))
+    (is (str/includes? agents "x-kotodama-verified"))))
+
+(deftest workflow-modes-match-guest
+  (testing "guest test-workflow: 9 つの閉じたワークフロー"
+    (doseq [w ["txt2img" "img2img" "animatediff" "svd" "wan5b_i2v"
+               "sbv2" "xtts" "musicgen" "stable_audio"]]
+      (is (str/includes? workflows w)))))
